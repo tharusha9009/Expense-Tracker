@@ -2,29 +2,39 @@ import datetime
 from tabulate import tabulate
 import csv
 import os
+import calendar
 expenses = []
-
+print(expenses)
 
 def store_data_csv(expenses):
-    filename = f"{datetime.date.today().month}.csv"
+    filename = f"{calendar.month_name[datetime.date.today().month]}.csv"
     fieldnames = list(expenses[0].keys())
 
     if not expenses:
         print("No expenses to save.")
         return
+    else:
+        
+        file_exists = os.path.exists(filename)
+        with open(filename, "a+", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+           
 
-    file_exists = os.path.exists(filename)
-
-    with open(filename, "a", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-
-        # Write header only if file is new
-        if not file_exists:
-            writer.writeheader()
-
-        writer.writerows(expenses)
-
-    print(f"Saved {len(expenses)} expenses to {filename}")
+          # Write header only if file is new
+            if not file_exists:
+                new_id = 1
+                for item in expenses:
+                    item["Id"] = new_id
+                    new_id += 1
+                writer.writeheader()
+                writer.writerows(expenses)
+            else:
+                new_id = 1
+                for item in expenses:
+                    item["Id"] = new_id
+                    new_id += 1
+                writer.writerows(expenses)
+        print(f"Saved {len(expenses)} expenses to {filename}")
 
         
 
@@ -86,8 +96,7 @@ def main():
             print(" 4). Delete the expense ")
             print(" 5). Summery of the expense ")
             print(" 6). Store the data to csv ")
-            print(" 7). Quit the Data ")   
-
+            print(" 7). Quit the Data ")                                                                       
             number = int(input("Enter the number : "))
 
             if number == 1:
