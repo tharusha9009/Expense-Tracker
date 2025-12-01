@@ -6,44 +6,27 @@ expenses = []
 
 
 def store_data_csv(expenses):
-    path_file=f"{datetime.date.today().month}.csv"
-    
+    filename = f"{datetime.date.today().month}.csv"
+    fieldnames = list(expenses[0].keys())
+
     if not expenses:
         print("No expenses to save.")
         return
-    elif os.path.exists(path_file):
-        print("File exists !!")
-        fieldnames = list(expenses[0].keys())
-        filename = f"{datetime.date.today().month}.csv"
-        with open(filename, "a", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(expenses)
-        file.close()
-    else:
-        print("file not found....File ")
-        fieldnames = list(expenses[0].keys())
-        filename = f"{datetime.date.month()}.csv"
-        with open(filename, "a", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(expenses)
-    print(f"Saved {len(expenses)} expenses to {filename}")
-        
-            
-            
-            
-    
-        
-        
-        
-        
-        
-        
-        
-        
-    
 
+    file_exists = os.path.exists(filename)
+
+    with open(filename, "a", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        # Write header only if file is new
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerows(expenses)
+
+    print(f"Saved {len(expenses)} expenses to {filename}")
+
+        
 
 def summary_of_expense():
     pass
