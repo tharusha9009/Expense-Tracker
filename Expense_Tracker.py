@@ -3,18 +3,17 @@ from tabulate import tabulate
 import csv
 import os
 import calendar
+
 expenses = []
-print(expenses)
+#print(expenses)
 
 def store_data_csv(expenses):
     filename = f"{calendar.month_name[datetime.date.today().month]}.csv"
     fieldnames = list(expenses[0].keys())
-
     if not expenses:
         print("No expenses to save.")
         return
     else:
-        
         file_exists = os.path.exists(filename)
         with open(filename, "a+", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -22,24 +21,21 @@ def store_data_csv(expenses):
 
           # Write header only if file is new
             if not file_exists:
-                new_id = 1
-                for item in expenses:
-                    item["Id"] = new_id
-                    new_id += 1
                 writer.writeheader()
                 writer.writerows(expenses)
             else:
-                new_id = 1
-                for item in expenses:
-                    item["Id"] = new_id
-                    new_id += 1
                 writer.writerows(expenses)
+                summary_of_expense(filename)
         print(f"Saved {len(expenses)} expenses to {filename}")
 
         
 
-def summary_of_expense():
+def summary_of_expense(filename):
+    
     pass
+    
+    
+    
 
 
 def delete_expense(expenses):
@@ -47,6 +43,7 @@ def delete_expense(expenses):
 
 
 def update_expense(expenses):
+    
     pass
 
 
@@ -66,15 +63,13 @@ def Add_Expense():
     while True:
         description = input(str("expense-tracker add --description : "))
         amount = float(input("expense-tracker add --amount : "))
-        date_old = input(str("Is this bill spend in today :(y/n) ? : ")).lower()
-        if date_old == "n":
-            date = input(str("Enter the Date : "))
-        else:
-            date = datetime.date.today()
+        expense_type = input(str("Enter the type of expense : "))
+        date = datetime.date.today()
         id_num = len(expenses) + 1
         expense = {
             "Id": id_num,
             "Description": description,
+            "Expense_Type":  expense_type ,
             "Amount": amount,
             "Date": date
         }
@@ -98,7 +93,6 @@ def main():
             print(" 6). Store the data to csv ")
             print(" 7). Quit the Data ")                                                                       
             number = int(input("Enter the number : "))
-
             if number == 1:
                 Add_Expense()
             elif number == 2:
