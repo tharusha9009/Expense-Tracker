@@ -31,20 +31,87 @@ def store_data_csv(expenses):
         
 
 def summary_of_expense(filename):
+    filename = input(str("Enter the file to check the Summary : "))
+    if  os.path.exists(filename):
+        with open(filename , "r+") as file:
+            lines = file.readlines()
+        #print(lines)
+        header = lines[0].strip().split(",")
+        data = []
+        for line  in lines[1:]:
+            values = line.strip().split(",")
+            row = dict(zip(header, values))
+            data.append(row)
+        
+        outcomes = {
+            "Total_Expense":0,
+            "Total_amount":0
+            
+        }
+        outcomes["Total_Expense"] = len(data)
+        total_amount = sum(float(row["Amount"]) for row in data)
+        outcomes["Total_amount"] = total_amount
+        
+        
+        print(f"----------- Summary of the {filename}----------------------")
+        print(f"Total expense amount for this  moment : {outcomes["Total_amount"]}")        
+        print(f"Total number of expenses : {outcomes["Total_Expense"]}")
+        
+    else:
+        print(f"The file You Entered does not exsits...")
     
-    pass
+    
+    
+    
+ 
     
     
     
 
 
-def delete_expense(expenses):
-    pass
+def delete_expense(filename):
+    filename = input(str("Enter the file to Delete expense: "))
+    if  os.path.exists(filename):
+        with open(filename , "r+") as file:
+            lines = file.readlines()
+        #print(lines)
+        header = lines[0].strip().split(",")
+        data = []
+        for line  in lines[1:]:
+            values = line.strip().split(",")
+            row = dict(zip(header, values))
+            data.append(row)
+        # Delete Part
+        
+        
+        
+        
+    else:
+        print(f"The file You Entered does not exsits...")
 
 
-def update_expense(expenses):
+
+def update_expense(filename):
+    filename = input(str("Enter the file to Delete expense: "))
+    if  os.path.exists(filename):
+        with open(filename , "r+") as file:
+            lines = file.readlines()
+        #print(lines)
+        header = lines[0].strip().split(",")
+        data = []
+        for line  in lines[1:]:
+            values = line.strip().split(",")
+            row = dict(zip(header, values))
+            data.append(row)
+            # Update Part
+       
+        
+        
+    else:
+        print(f"The file You Entered does not exsits...")
     
-    pass
+    
+    
 
 
 def View_Expense(expenses):
