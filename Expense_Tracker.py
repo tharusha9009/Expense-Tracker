@@ -248,10 +248,6 @@ def Add_Expense():
         if more == "n":
             break
     
-        
-         
-
-
 def main():
     while True:
         try:
