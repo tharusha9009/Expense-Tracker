@@ -3,7 +3,7 @@ from tkinter import messagebox, ttk
 import tkinter as tk
 from expense_logic import ExpenseLogic
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 import datetime
 
 ctk.set_appearance_mode("System")
@@ -227,6 +227,28 @@ class ExpenseTrackerApp(ctk.CTk):
         
         count_lbl = ctk.CTkLabel(stats_frame, text=f"Total Transactions: {data['count']}", font=ctk.CTkFont(size=18))
         count_lbl.pack(side="left", padx=20)
+
+        # Previous month comparison
+        comp = self.logic.compare_with_previous_month()
+        if comp["prev_exists"]:
+            prev_lbl = ctk.CTkLabel(stats_frame, text=f"Prev ({comp['prev_month_name']}): ${comp['previous_total']:.2f}", font=ctk.CTkFont(size=16))
+            prev_lbl.pack(side="left", padx=20)
+
+            if comp["percent_change"] is None:
+                change_text = "Change: N/A"
+                change_color = "gray"
+            else:
+                sign = "+" if comp["difference"] > 0 else ""
+                pct = comp["percent_change"]
+                change_text = f"Change: {sign}{pct:.1f}% ({sign}${comp['difference']:.2f})"
+                # spending decrease is good -> green, increase -> red
+                change_color = "green" if comp["difference"] < 0 else ("red" if comp["difference"] > 0 else "white")
+
+            change_lbl = ctk.CTkLabel(stats_frame, text=change_text, text_color=change_color, font=ctk.CTkFont(size=16))
+            change_lbl.pack(side="left", padx=20)
+        else:
+            prev_lbl = ctk.CTkLabel(stats_frame, text=f"No data for previous month", font=ctk.CTkFont(size=16))
+            prev_lbl.pack(side="left", padx=20)
 
         # Charts Area
         charts_frame = ctk.CTkFrame(self.dashboard_frame, fg_color="transparent")

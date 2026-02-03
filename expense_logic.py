@@ -114,3 +114,56 @@ class ExpenseLogic:
             "expense_by_date": expense_by_date,
             "count": len(expenses)
         }
+
+    def compare_with_previous_month(self):
+        """Compare current month's total with previous month's total.
+        Returns a dict with keys: current_total, previous_total, difference, percent_change,
+        prev_month_name, prev_exists, status
+        """
+        today = datetime.date.today()
+        # compute previous month (handle January -> December)
+        prev_month = today.month - 1 if today.month > 1 else 12
+        prev_month_name = calendar.month_name[prev_month]
+        prev_filename = f"{prev_month_name}.csv"
+
+        prev_exists = os.path.exists(prev_filename)
+        previous_total = 0.0
+        if prev_exists:
+            with open(prev_filename, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                if rows:
+                    try:
+                        previous_total = sum(float(r["Amount"]) for r in rows)
+                    except Exception:
+                        previous_total = 0.0
+
+        current_summary = self.get_summary_data()
+        current_total = current_summary["total_amount"] if current_summary else 0.0
+
+        difference = current_total - previous_total
+        percent_change = None
+        if previous_total != 0:
+            percent_change = (difference / previous_total) * 100
+
+        if not prev_exists:
+            status = "no_prev_file"
+        else:
+            if previous_total == 0 and current_total == 0:
+                status = "no_data"
+            elif difference > 0:
+                status = "increase"
+            elif difference < 0:
+                status = "decrease"
+            else:
+                status = "same"
+
+        return {
+            "current_total": current_total,
+            "previous_total": previous_total,
+            "difference": difference,
+            "percent_change": percent_change,
+            "prev_month_name": prev_month_name,
+            "prev_exists": prev_exists,
+            "status": status
+        }
