@@ -5,6 +5,7 @@ from expense_logic import ExpenseLogic
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt 
 import datetime
+import calendar
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
@@ -250,6 +251,10 @@ class ExpenseTrackerApp(ctk.CTk):
             prev_lbl = ctk.CTkLabel(stats_frame, text=f"No data for previous month", font=ctk.CTkFont(size=16))
             prev_lbl.pack(side="left", padx=20)
 
+        # Sync missing entries from other month files into current month
+        sync_btn = ctk.CTkButton(stats_frame, text="Sync Previous Months", command=self.sync_previous_months_action, width=180)
+        sync_btn.pack(side="right", padx=10)
+
         # Charts Area
         charts_frame = ctk.CTkFrame(self.dashboard_frame, fg_color="transparent")
         charts_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -296,6 +301,38 @@ class ExpenseTrackerApp(ctk.CTk):
         canvas2.draw()
         canvas2.get_tk_widget().pack(side="right", fill="both", expand=True, padx=5)
 
+        # 3. Monthly comparison across all CSV files
+        monthly_totals = self.logic.get_all_monthly_totals()
+        if monthly_totals:
+            # Order months by calendar index and filter only present months
+            month_order = [m for m in calendar.month_name[1:] if m in monthly_totals]
+            months = month_order
+            totals = [monthly_totals[m] for m in months]
+            fig3, ax3 = plt.subplots(figsize=(8, 3))
+            fig3.patch.set_facecolor('#242424')
+            ax3.set_facecolor('#242424')
+            ax3.bar(months, totals, color='#2ca02c')
+            ax3.tick_params(axis='x', colors='white', rotation=45)
+            ax3.tick_params(axis='y', colors='white')
+            ax3.set_title("Monthly Totals", color='white')
+            fig3.tight_layout()
+            canvas3 = FigureCanvasTkAgg(fig3, master=charts_frame)
+            canvas3.draw()
+            canvas3.get_tk_widget().pack(side="bottom", fill="x", padx=5, pady=(10, 0))
+
+    def sync_previous_months_action(self):
+        result = self.logic.sync_missing_from_previous_months()
+        count = result.get("imported_count", 0)
+        if count > 0:
+            messagebox.showinfo("Sync Complete", f"Imported {count} missing expenses into current month.")
+        else:
+            messagebox.showinfo("Sync Complete", "No missing expenses found.")
+        # Refresh the UI
+        if self.dashboard_frame.winfo_ismapped():
+            self.update_dashboard()
+        if self.view_expenses_frame.winfo_ismapped():
+            self.refresh_expense_list()
+
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
         # Re-draw charts to match theme if needed, but simple re-navigation to dashboard works 
@@ -311,3 +348,5 @@ class ExpenseTrackerApp(ctk.CTk):
 if __name__ == "__main__":
     app = ExpenseTrackerApp()
     app.mainloop()
+
+

@@ -167,3 +167,77 @@ class ExpenseLogic:
             "prev_exists": prev_exists,
             "status": status
         }
+
+    def _row_key(self, row):
+        """Create a normalized key for a row to detect duplicates."""
+        desc = str(row.get("Description", "")).strip()
+        etype = str(row.get("Expense_Type", "")).strip()
+        try:
+            amt = f"{float(row.get('Amount', 0)):.2f}"
+        except Exception:
+            amt = str(row.get("Amount", "")).strip()
+        date = str(row.get("Date", "")).strip()
+        return (desc, etype, amt, date)
+
+    def sync_missing_from_previous_months(self):
+        """Scan other month CSV files and append any rows missing in the current month's file.
+        Returns dict with imported_count and imported list.
+        """
+        current_file = self.filename
+        current_rows = self.load_expenses()
+        current_keys = {self._row_key(r) for r in current_rows}
+        imported = []
+
+        for m in range(1, 13):
+            fname = f"{calendar.month_name[m]}.csv"
+            if fname == current_file or not os.path.exists(fname):
+                continue
+
+            with open(fname, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                for r in reader:
+                    key = self._row_key(r)
+                    if key not in current_keys:
+                        # assign new ID
+                        try:
+                            max_id = max(int(x["Id"]) for x in current_rows) if current_rows else 0
+                        except Exception:
+                            max_id = len(current_rows)
+                        new_id = max_id + 1
+
+                        new_row = {
+                            "Id": new_id,
+                            "Description": r.get("Description", ""),
+                            "Expense_Type": r.get("Expense_Type", ""),
+                            "Amount": r.get("Amount", "0"),
+                            "Date": r.get("Date", "")
+                        }
+
+                        with open(current_file, "a", newline="") as cf:
+                            writer = csv.DictWriter(cf, fieldnames=["Id", "Description", "Expense_Type", "Amount", "Date"])
+                            if os.path.getsize(current_file) == 0:
+                                writer.writeheader()
+                            writer.writerow(new_row)
+
+                        current_rows.append(new_row)
+                        current_keys.add(key)
+                        imported.append({"from_file": fname, **new_row})
+
+        return {"imported_count": len(imported), "imported": imported}
+
+    def get_all_monthly_totals(self):
+        """Return dict mapping month name to total amount for all month CSV files present."""
+        totals = {}
+        for m in range(1, 13):
+            fname = f"{calendar.month_name[m]}.csv"
+            if os.path.exists(fname):
+                with open(fname, "r", newline="") as f:
+                    reader = csv.DictReader(f)
+                    total = 0.0
+                    for r in reader:
+                        try:
+                            total += float(r.get("Amount", 0))
+                        except Exception:
+                            pass
+                    totals[calendar.month_name[m]] = total
+        return totals
