@@ -180,19 +180,65 @@ class ExpenseLogic:
         return (desc, etype, amt, date)
 
     def sync_missing_from_previous_months(self):
-        """Scan other month CSV files and append any rows missing in the current month's file.
+        """Backward-compatible wrapper that syncs from all months (same behavior as before).
         Returns dict with imported_count and imported list.
+        """
+        months = [calendar.month_name[m] for m in range(1, 13)]
+        return self.perform_sync(months)
+
+    def get_all_monthly_totals(self):
+        """Return dict mapping month name to total amount for all month CSV files present."""
+        totals = {}
+        for m in range(1, 13):
+            fname = f"{calendar.month_name[m]}.csv"
+            if os.path.exists(fname):
+                with open(fname, "r", newline="") as f:
+                    reader = csv.DictReader(f)
+                    total = 0.0
+                    for r in reader:
+                        try:
+                            total += float(r.get("Amount", 0))
+                        except Exception:
+                            pass
+                    totals[calendar.month_name[m]] = total
+        return totals
+
+    def preview_missing_from_previous_months(self, months=None):
+        """Return list of rows (dicts) that would be imported from the given months, without writing."""
+        current_file = self.filename
+        current_rows = self.load_expenses()
+        current_keys = {self._row_key(r) for r in current_rows}
+        candidates = []
+
+        months_to_check = months if months is not None else [calendar.month_name[m] for m in range(1, 13)]
+
+        for mname in months_to_check:
+            fname = f"{mname}.csv"
+            if fname == current_file or not os.path.exists(fname):
+                continue
+            with open(fname, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                for r in reader:
+                    key = self._row_key(r)
+                    if key not in current_keys:
+                        candidates.append({"from_file": fname, **r})
+        return candidates
+
+    def perform_sync(self, months=None):
+        """Actually import missing rows from the given months into the current month's file.
+        Returns dict with imported_count and imported list (rows written).
         """
         current_file = self.filename
         current_rows = self.load_expenses()
         current_keys = {self._row_key(r) for r in current_rows}
         imported = []
 
-        for m in range(1, 13):
-            fname = f"{calendar.month_name[m]}.csv"
+        months_to_check = months if months is not None else [calendar.month_name[m] for m in range(1, 13)]
+
+        for mname in months_to_check:
+            fname = f"{mname}.csv"
             if fname == current_file or not os.path.exists(fname):
                 continue
-
             with open(fname, "r", newline="") as f:
                 reader = csv.DictReader(f)
                 for r in reader:
@@ -224,20 +270,3 @@ class ExpenseLogic:
                         imported.append({"from_file": fname, **new_row})
 
         return {"imported_count": len(imported), "imported": imported}
-
-    def get_all_monthly_totals(self):
-        """Return dict mapping month name to total amount for all month CSV files present."""
-        totals = {}
-        for m in range(1, 13):
-            fname = f"{calendar.month_name[m]}.csv"
-            if os.path.exists(fname):
-                with open(fname, "r", newline="") as f:
-                    reader = csv.DictReader(f)
-                    total = 0.0
-                    for r in reader:
-                        try:
-                            total += float(r.get("Amount", 0))
-                        except Exception:
-                            pass
-                    totals[calendar.month_name[m]] = total
-        return totals

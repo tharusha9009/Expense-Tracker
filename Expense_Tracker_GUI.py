@@ -45,17 +45,24 @@ class ExpenseTrackerApp(ctk.CTk):
         self.sidebar_button_3 = ctk.CTkButton(self.sidebar_frame, text="View Expenses", command=lambda: self.show_frame("view_expenses"))
         self.sidebar_button_3.grid(row=3, column=0, padx=20, pady=10)
 
+        # New: Current Month Expenses
+        self.sidebar_button_current = ctk.CTkButton(self.sidebar_frame, text="Current Month Expense", command=lambda: self.show_frame("current"))
+        self.sidebar_button_current.grid(row=4, column=0, padx=20, pady=10)
+
+        self.sidebar_button_4 = ctk.CTkButton(self.sidebar_frame, text="Monthly Comparison", command=lambda: self.show_frame("monthly"))
+        self.sidebar_button_4.grid(row=5, column=0, padx=20, pady=10)
+
         self.appearance_mode_label = ctk.CTkLabel(self.sidebar_frame, text="Appearance Mode:", anchor="w")
-        self.appearance_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0))
+        self.appearance_mode_label.grid(row=6, column=0, padx=20, pady=(10, 0))
         self.appearance_mode_optionemenu = ctk.CTkOptionMenu(self.sidebar_frame, values=["Light", "Dark", "System"],
                                                                        command=self.change_appearance_mode_event)
-        self.appearance_mode_optionemenu.grid(row=6, column=0, padx=20, pady=(10, 10))
+        self.appearance_mode_optionemenu.grid(row=7, column=0, padx=20, pady=(10, 10))
 
         self.scaling_label = ctk.CTkLabel(self.sidebar_frame, text="UI Scaling:", anchor="w")
-        self.scaling_label.grid(row=7, column=0, padx=20, pady=(10, 0))
+        self.scaling_label.grid(row=8, column=0, padx=20, pady=(10, 0))
         self.scaling_optionemenu = ctk.CTkOptionMenu(self.sidebar_frame, values=["80%", "90%", "100%", "110%", "120%"],
                                                                command=self.change_scaling_event)
-        self.scaling_optionemenu.grid(row=8, column=0, padx=20, pady=(10, 20))
+        self.scaling_optionemenu.grid(row=9, column=0, padx=20, pady=(10, 20))
 
         # Set Defaults
         self.appearance_mode_optionemenu.set("System")
@@ -73,11 +80,21 @@ class ExpenseTrackerApp(ctk.CTk):
         self.view_expenses_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.setup_view_expenses_ui()
 
+        # Current Month Frame
+        self.current_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.setup_current_month_ui()
+
+        # Monthly Comparison Frame
+        self.monthly_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.setup_monthly_ui()
+
     def show_frame(self, name):
         # Hide all
         self.dashboard_frame.grid_forget()
         self.add_expense_frame.grid_forget()
         self.view_expenses_frame.grid_forget()
+        self.current_frame.grid_forget()
+        self.monthly_frame.grid_forget()
         
         if name == "dashboard":
             self.dashboard_frame.grid(row=0, column=1, sticky="nsew")
@@ -87,6 +104,12 @@ class ExpenseTrackerApp(ctk.CTk):
         elif name == "view_expenses":
             self.view_expenses_frame.grid(row=0, column=1, sticky="nsew")
             self.refresh_expense_list()
+        elif name == "current":
+            self.current_frame.grid(row=0, column=1, sticky="nsew")
+            self.refresh_current_list()
+        elif name == "monthly":
+            self.monthly_frame.grid(row=0, column=1, sticky="nsew")
+            self.update_monthly_view()
 
     # --- Add Expense UI ---
     def setup_add_expense_ui(self):
@@ -193,6 +216,243 @@ class ExpenseTrackerApp(ctk.CTk):
         for exp in expenses:
             self.tree.insert("", "end", values=(exp["Id"], exp["Description"], exp["Expense_Type"], f"${exp['Amount']}", exp["Date"]))
 
+    # --- Current Month UI ---
+    def setup_current_month_ui(self):
+        self.current_label = ctk.CTkLabel(self.current_frame, text="Current Month Expenses", font=ctk.CTkFont(size=24))
+        self.current_label.pack(pady=10)
+
+        self.current_tree_frame = ctk.CTkFrame(self.current_frame)
+        self.current_tree_frame.pack(padx=20, pady=10, fill="both", expand=True)
+
+        cols = ("Id", "Description", "Type", "Amount", "Date")
+        self.current_tree = ttk.Treeview(self.current_tree_frame, columns=cols, show="headings")
+        for col in cols:
+            self.current_tree.heading(col, text=col)
+            self.current_tree.column(col, width=120)
+        self.current_tree.pack(side="left", fill="both", expand=True)
+
+        current_scroll = ttk.Scrollbar(self.current_tree_frame, orient="vertical", command=self.current_tree.yview)
+        current_scroll.pack(side="right", fill="y")
+        self.current_tree.configure(yscrollcommand=current_scroll.set)
+
+        # Buttons
+        self.current_btn_frame = ctk.CTkFrame(self.current_frame, fg_color="transparent")
+        self.current_btn_frame.pack(pady=10)
+
+        self.current_refresh_btn = ctk.CTkButton(self.current_btn_frame, text="Refresh", command=self.refresh_current_list)
+        self.current_refresh_btn.pack(side="left", padx=10)
+
+        self.current_delete_btn = ctk.CTkButton(self.current_btn_frame, text="Delete Selected", fg_color="red", hover_color="darkred", command=self.delete_current_selected_action)
+        self.current_delete_btn.pack(side="left", padx=10)
+
+    def refresh_current_list(self):
+        for item in self.current_tree.get_children():
+            self.current_tree.delete(item)
+        expenses = self.logic.load_expenses()
+        for exp in expenses:
+            self.current_tree.insert("", "end", values=(exp["Id"], exp["Description"], exp["Expense_Type"], f"${exp['Amount']}", exp["Date"]))
+
+    def delete_current_selected_action(self):
+        selected = self.current_tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "No expense selected")
+            return
+        confirm = messagebox.askyesno("Confirm", "Are you sure you want to delete this expense?")
+        if confirm:
+            item = self.current_tree.item(selected[0])
+            exp_id = item['values'][0]
+            self.logic.delete_expense(exp_id)
+            self.refresh_current_list()
+
+    # --- Monthly Comparison UI ---
+    def setup_monthly_ui(self):
+        self.monthly_label = ctk.CTkLabel(self.monthly_frame, text="Monthly Comparison", font=ctk.CTkFont(size=24))
+        self.monthly_label.pack(pady=10)
+
+        self.monthly_stats_frame = ctk.CTkFrame(self.monthly_frame, fg_color="transparent")
+        self.monthly_stats_frame.pack(fill="x", pady=10, padx=10)
+
+        self.monthly_total_lbl = ctk.CTkLabel(self.monthly_stats_frame, text="", font=ctk.CTkFont(size=18, weight="bold"))
+        self.monthly_total_lbl.pack(side="left", padx=20)
+
+        self.monthly_prev_lbl = ctk.CTkLabel(self.monthly_stats_frame, text="", font=ctk.CTkFont(size=16))
+        self.monthly_prev_lbl.pack(side="left", padx=20)
+
+        self.monthly_change_lbl = ctk.CTkLabel(self.monthly_stats_frame, text="", font=ctk.CTkFont(size=16))
+        self.monthly_change_lbl.pack(side="left", padx=20)
+
+        # Selection and preview area
+        self.months_selection_frame = ctk.CTkFrame(self.monthly_frame, fg_color="transparent")
+        self.months_selection_frame.pack(fill="x", pady=(0,10), padx=10)
+
+        self.months_label = ctk.CTkLabel(self.months_selection_frame, text="Select months to sync:")
+        self.months_label.pack(anchor='w', padx=10)
+
+        self.months_check_frame = ctk.CTkFrame(self.months_selection_frame, fg_color="transparent")
+        self.months_check_frame.pack(fill="x", padx=10, pady=5)
+
+        # will populate checkboxes dynamically in update_monthly_view
+        self.month_check_vars = {}
+
+        btns_frame = ctk.CTkFrame(self.months_selection_frame, fg_color="transparent")
+        btns_frame.pack(fill="x", padx=10)
+
+        self.preview_btn = ctk.CTkButton(btns_frame, text="Preview Imports", command=self.preview_imports_action)
+        self.preview_btn.pack(side="left", padx=(0,10))
+
+        self.perform_sync_btn = ctk.CTkButton(btns_frame, text="Sync Selected", command=self.perform_sync_action)
+        self.perform_sync_btn.pack(side="left")
+
+        # Preview Tree
+        self.preview_frame = ctk.CTkFrame(self.monthly_frame, fg_color="transparent")
+        self.preview_frame.pack(fill="both", expand=False, padx=10, pady=(5,10))
+
+        cols = ("From File", "Description", "Type", "Amount", "Date")
+        self.import_preview_tree = ttk.Treeview(self.preview_frame, columns=cols, show='headings', height=6)
+        for c in cols:
+            self.import_preview_tree.heading(c, text=c)
+            self.import_preview_tree.column(c, width=140)
+        self.import_preview_tree.pack(side="left", fill="both", expand=True)
+
+        preview_scroll = ttk.Scrollbar(self.preview_frame, orient="vertical", command=self.import_preview_tree.yview)
+        preview_scroll.pack(side="right", fill="y")
+        self.import_preview_tree.configure(yscrollcommand=preview_scroll.set)
+
+        self.monthly_chart_frame = ctk.CTkFrame(self.monthly_frame, fg_color="transparent")
+        self.monthly_chart_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def get_available_months(self):
+        # Return list of month names that have CSV files (excluding current month)
+        files = self.logic.get_all_monthly_totals()
+        current_month = calendar.month_name[datetime.date.today().month]
+        months = [m for m in calendar.month_name[1:] if (m in files and m != current_month)]
+        return months
+
+    def preview_imports_action(self):
+        # gather selected months
+        selected = [m for m, var in self.month_check_vars.items() if var.get()]
+        if not selected:
+            messagebox.showwarning("No Months Selected", "Please select at least one month to preview.")
+            return
+
+        # preview via logic
+        preview_rows = self.logic.preview_missing_from_previous_months(months=selected)
+
+        # clear tree
+        for item in self.import_preview_tree.get_children():
+            self.import_preview_tree.delete(item)
+
+        if not preview_rows:
+            messagebox.showinfo("Preview", "No missing entries found for the selected months.")
+            self.perform_sync_btn.configure(state="disabled")
+            return
+
+        for r in preview_rows:
+            self.import_preview_tree.insert("", "end", values=(r.get("from_file"), r.get("Description"), r.get("Expense_Type"), f"${r.get('Amount')}", r.get("Date")))
+
+        self.perform_sync_btn.configure(state="normal")
+
+    def perform_sync_action(self):
+        selected = [m for m, var in self.month_check_vars.items() if var.get()]
+        if not selected:
+            messagebox.showwarning("No Months Selected", "Please select at least one month to sync.")
+            return
+
+        preview_rows = self.logic.preview_missing_from_previous_months(months=selected)
+        if not preview_rows:
+            messagebox.showinfo("Sync", "No missing entries to import for selected months.")
+            return
+
+        confirm = messagebox.askyesno("Confirm Sync", f"This will import {len(preview_rows)} entries into the current month's file. Continue?")
+        if not confirm:
+            return
+
+        result = self.logic.perform_sync(selected)
+        cnt = result.get("imported_count", 0)
+        messagebox.showinfo("Sync Complete", f"Imported {cnt} missing expenses into current month.")
+
+        # Clear preview and disable sync
+        for item in self.import_preview_tree.get_children():
+            self.import_preview_tree.delete(item)
+        self.perform_sync_btn.configure(state="disabled")
+
+        # Refresh UI
+        if self.monthly_frame.winfo_ismapped():
+            self.update_monthly_view()
+        if self.view_expenses_frame.winfo_ismapped():
+            self.refresh_expense_list()
+
+    def update_monthly_view(self):
+        # Clear chart area
+        for widget in self.monthly_chart_frame.winfo_children():
+            widget.destroy()
+
+        comp = self.logic.compare_with_previous_month()
+        self.monthly_total_lbl.configure(text=f"Current Total: ${comp['current_total']:.2f}")
+        if comp['prev_exists']:
+            self.monthly_prev_lbl.configure(text=f"Prev ({comp['prev_month_name']}): ${comp['previous_total']:.2f}")
+            if comp['percent_change'] is None:
+                self.monthly_change_lbl.configure(text="Change: N/A", text_color="gray")
+            else:
+                sign = "+" if comp['difference'] > 0 else ""
+                pct = comp['percent_change']
+                change_text = f"Change: {sign}{pct:.1f}% ({sign}${comp['difference']:.2f})"
+                change_color = "green" if comp['difference'] < 0 else ("red" if comp['difference'] > 0 else "white")
+                self.monthly_change_lbl.configure(text=change_text, text_color=change_color)
+        else:
+            self.monthly_prev_lbl.configure(text="No data for previous month")
+            self.monthly_change_lbl.configure(text="")
+
+        # populate month checkboxes
+        months = self.get_available_months()
+        # clear previous checkboxes
+        for widget in self.months_check_frame.winfo_children():
+            widget.destroy()
+        self.month_check_vars = {}
+        for m in months:
+            var = tk.BooleanVar(value=False)
+            cb = ctk.CTkCheckBox(self.months_check_frame, text=m, variable=var)
+            cb.pack(side="left", padx=5)
+            self.month_check_vars[m] = var
+
+        monthly_totals = self.logic.get_all_monthly_totals()
+        if monthly_totals:
+            months_present = [m for m in calendar.month_name[1:] if m in monthly_totals]
+            totals = [monthly_totals[m] for m in months_present]
+            fig, ax = plt.subplots(figsize=(8, 3))
+            fig.patch.set_facecolor('#242424')
+            ax.set_facecolor('#242424')
+            # Highlight current month
+            current = calendar.month_name[datetime.date.today().month]
+            colors = ['#ff7f0e' if m == current else '#2ca02c' for m in months_present]
+            ax.bar(months_present, totals, color=colors)
+            ax.tick_params(axis='x', colors='white', rotation=45)
+            ax.tick_params(axis='y', colors='white')
+            ax.set_title("Monthly Totals", color='white')
+            fig.tight_layout()
+            canvas = FigureCanvasTkAgg(fig, master=self.monthly_chart_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    def show_frame(self, name):
+        # Hide all
+        self.dashboard_frame.grid_forget()
+        self.add_expense_frame.grid_forget()
+        self.view_expenses_frame.grid_forget()
+        self.monthly_frame.grid_forget()
+        
+        if name == "dashboard":
+            self.dashboard_frame.grid(row=0, column=1, sticky="nsew")
+            self.update_dashboard()
+        elif name == "add_expense":
+            self.add_expense_frame.grid(row=0, column=1, sticky="nsew")
+        elif name == "view_expenses":
+            self.view_expenses_frame.grid(row=0, column=1, sticky="nsew")
+            self.refresh_expense_list()
+        elif name == "monthly":
+            self.monthly_frame.grid(row=0, column=1, sticky="nsew")
+            self.update_monthly_view()
+
     def delete_selected_action(self):
         selected = self.tree.selection()
         if not selected:
@@ -229,31 +489,7 @@ class ExpenseTrackerApp(ctk.CTk):
         count_lbl = ctk.CTkLabel(stats_frame, text=f"Total Transactions: {data['count']}", font=ctk.CTkFont(size=18))
         count_lbl.pack(side="left", padx=20)
 
-        # Previous month comparison
-        comp = self.logic.compare_with_previous_month()
-        if comp["prev_exists"]:
-            prev_lbl = ctk.CTkLabel(stats_frame, text=f"Prev ({comp['prev_month_name']}): ${comp['previous_total']:.2f}", font=ctk.CTkFont(size=16))
-            prev_lbl.pack(side="left", padx=20)
-
-            if comp["percent_change"] is None:
-                change_text = "Change: N/A"
-                change_color = "gray"
-            else:
-                sign = "+" if comp["difference"] > 0 else ""
-                pct = comp["percent_change"]
-                change_text = f"Change: {sign}{pct:.1f}% ({sign}${comp['difference']:.2f})"
-                # spending decrease is good -> green, increase -> red
-                change_color = "green" if comp["difference"] < 0 else ("red" if comp["difference"] > 0 else "white")
-
-            change_lbl = ctk.CTkLabel(stats_frame, text=change_text, text_color=change_color, font=ctk.CTkFont(size=16))
-            change_lbl.pack(side="left", padx=20)
-        else:
-            prev_lbl = ctk.CTkLabel(stats_frame, text=f"No data for previous month", font=ctk.CTkFont(size=16))
-            prev_lbl.pack(side="left", padx=20)
-
-        # Sync missing entries from other month files into current month
-        sync_btn = ctk.CTkButton(stats_frame, text="Sync Previous Months", command=self.sync_previous_months_action, width=180)
-        sync_btn.pack(side="right", padx=10)
+        # (Monthly comparison moved to the 'Monthly Comparison' view)
 
         # Charts Area
         charts_frame = ctk.CTkFrame(self.dashboard_frame, fg_color="transparent")
@@ -301,24 +537,7 @@ class ExpenseTrackerApp(ctk.CTk):
         canvas2.draw()
         canvas2.get_tk_widget().pack(side="right", fill="both", expand=True, padx=5)
 
-        # 3. Monthly comparison across all CSV files
-        monthly_totals = self.logic.get_all_monthly_totals()
-        if monthly_totals:
-            # Order months by calendar index and filter only present months
-            month_order = [m for m in calendar.month_name[1:] if m in monthly_totals]
-            months = month_order
-            totals = [monthly_totals[m] for m in months]
-            fig3, ax3 = plt.subplots(figsize=(8, 3))
-            fig3.patch.set_facecolor('#242424')
-            ax3.set_facecolor('#242424')
-            ax3.bar(months, totals, color='#2ca02c')
-            ax3.tick_params(axis='x', colors='white', rotation=45)
-            ax3.tick_params(axis='y', colors='white')
-            ax3.set_title("Monthly Totals", color='white')
-            fig3.tight_layout()
-            canvas3 = FigureCanvasTkAgg(fig3, master=charts_frame)
-            canvas3.draw()
-            canvas3.get_tk_widget().pack(side="bottom", fill="x", padx=5, pady=(10, 0))
+
 
     def sync_previous_months_action(self):
         result = self.logic.sync_missing_from_previous_months()
