@@ -1,11 +1,12 @@
 import customtkinter as ctk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 import tkinter as tk
 from expense_logic import ExpenseLogic
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt 
 import datetime
 import calendar
+import csv
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
@@ -235,9 +236,20 @@ class ExpenseTrackerApp(ctk.CTk):
         current_scroll.pack(side="right", fill="y")
         self.current_tree.configure(yscrollcommand=current_scroll.set)
 
-        # Buttons
+        # Filters and Buttons
         self.current_btn_frame = ctk.CTkFrame(self.current_frame, fg_color="transparent")
-        self.current_btn_frame.pack(pady=10)
+        self.current_btn_frame.pack(pady=10, fill="x", padx=10)
+
+        # Search box
+        self.search_var = tk.StringVar()
+        self.search_entry = ctk.CTkEntry(self.current_btn_frame, placeholder_text="Search description...", textvariable=self.search_var, width=300)
+        self.search_entry.pack(side="left", padx=(0,10))
+        self.search_entry.bind("<KeyRelease>", lambda e: self.refresh_current_list())
+
+        # Category filter (populated dynamically)
+        self.category_var = tk.StringVar(value="All")
+        self.category_option = ctk.CTkOptionMenu(self.current_btn_frame, values=["All"], command=lambda v: self.refresh_current_list())
+        self.category_option.pack(side="left", padx=(0,10))
 
         self.current_refresh_btn = ctk.CTkButton(self.current_btn_frame, text="Refresh", command=self.refresh_current_list)
         self.current_refresh_btn.pack(side="left", padx=10)
@@ -245,11 +257,45 @@ class ExpenseTrackerApp(ctk.CTk):
         self.current_delete_btn = ctk.CTkButton(self.current_btn_frame, text="Delete Selected", fg_color="red", hover_color="darkred", command=self.delete_current_selected_action)
         self.current_delete_btn.pack(side="left", padx=10)
 
+        # Export current view to CSV
+        self.export_btn = ctk.CTkButton(self.current_btn_frame, text="Export Current Month", command=self.export_current_month_action)
+        self.export_btn.pack(side="right", padx=10)
+
     def refresh_current_list(self):
+        # Clear tree
         for item in self.current_tree.get_children():
             self.current_tree.delete(item)
+
+        # Load and apply filters
         expenses = self.logic.load_expenses()
+        search = self.search_var.get().strip().lower() if hasattr(self, 'search_var') else ''
+        selected_cat = self.category_var.get() if hasattr(self, 'category_var') else 'All'
+
+        # Gather categories for the filter dropdown
+        categories = set()
         for exp in expenses:
+            categories.add(exp.get("Expense_Type", "").strip())
+
+        # Update category option values (keep 'All' at front)
+        vals = ["All"] + sorted([c for c in categories if c])
+        try:
+            # Avoid resetting selection if already set
+            current_val = self.category_var.get()
+        except Exception:
+            current_val = "All"
+        self.category_option.configure(values=vals)
+        if current_val in vals:
+            self.category_var.set(current_val)
+        else:
+            self.category_var.set("All")
+
+        for exp in expenses:
+            desc = exp.get("Description", "").lower()
+            cat = exp.get("Expense_Type", "")
+            if search and search not in desc:
+                continue
+            if selected_cat != "All" and cat != selected_cat:
+                continue
             self.current_tree.insert("", "end", values=(exp["Id"], exp["Description"], exp["Expense_Type"], f"${exp['Amount']}", exp["Date"]))
 
     def delete_current_selected_action(self):
@@ -263,6 +309,32 @@ class ExpenseTrackerApp(ctk.CTk):
             exp_id = item['values'][0]
             self.logic.delete_expense(exp_id)
             self.refresh_current_list()
+
+    def export_current_month_action(self):
+        # Export the currently displayed rows to CSV
+        rows = []
+        for item in self.current_tree.get_children():
+            vals = self.current_tree.item(item)['values']
+            # Id, Description, Type, Amount(with $), Date
+            amt = str(vals[3]).lstrip('$')
+            rows.append({"Id": vals[0], "Description": vals[1], "Expense_Type": vals[2], "Amount": amt, "Date": vals[4]})
+
+        if not rows:
+            messagebox.showinfo("Export", "No rows to export.")
+            return
+
+        fpath = filedialog.asksaveasfilename(defaultextension='.csv', filetypes=[('CSV files', '*.csv')], title='Save current month export as')
+        if not fpath:
+            return
+
+        try:
+            with open(fpath, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=["Id", "Description", "Expense_Type", "Amount", "Date"])
+                writer.writeheader()
+                writer.writerows(rows)
+            messagebox.showinfo("Export", f"Exported {len(rows)} rows to {fpath}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export: {e}")
 
     # --- Monthly Comparison UI ---
     def setup_monthly_ui(self):
@@ -434,24 +506,7 @@ class ExpenseTrackerApp(ctk.CTk):
             canvas.draw()
             canvas.get_tk_widget().pack(fill="both", expand=True)
 
-    def show_frame(self, name):
-        # Hide all
-        self.dashboard_frame.grid_forget()
-        self.add_expense_frame.grid_forget()
-        self.view_expenses_frame.grid_forget()
-        self.monthly_frame.grid_forget()
-        
-        if name == "dashboard":
-            self.dashboard_frame.grid(row=0, column=1, sticky="nsew")
-            self.update_dashboard()
-        elif name == "add_expense":
-            self.add_expense_frame.grid(row=0, column=1, sticky="nsew")
-        elif name == "view_expenses":
-            self.view_expenses_frame.grid(row=0, column=1, sticky="nsew")
-            self.refresh_expense_list()
-        elif name == "monthly":
-            self.monthly_frame.grid(row=0, column=1, sticky="nsew")
-            self.update_monthly_view()
+
 
     def delete_selected_action(self):
         selected = self.tree.selection()
