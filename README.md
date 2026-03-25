@@ -1,5 +1,5 @@
 # Expense Tracker
-
+Project URL : https://github.com/tharusha9009/Expense-Tracker.git
 A simple expense tracker written in Python to record, view, filter, and summarize personal expenses.
 
 ## Features
